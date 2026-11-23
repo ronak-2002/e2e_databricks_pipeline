@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PulseStore &mdash; Stateful E-Commerce &amp; Kafka Event Stream</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚡</text></svg>">
+</head>
+<body>
+  <!-- Header / Navigation Bar -->
+  <header class="navbar">
+    <div class="nav-brand">
+      <div class="brand-logo">⚡</div>
+      <div>
+        <h1 class="brand-title">PulseStore</h1>
+        <p class="brand-subtitle">Stateful E-Commerce &bull; Apache Kafka Stream Simulator</p>
+      </div>
+    </div>
+
+    <div class="nav-controls">
+      <!-- Kafka Mode Indicator -->
+      <div class="kafka-badge" id="kafkaStatusBadge" title="Kafka Producer Operational Mode">
+        <span class="status-dot online"></span>
+        <span id="kafkaModeText">Kafka: MOCK</span>
+      </div>
+
+      <!-- User Persona Selector -->
+      <div class="persona-selector-wrap">
+        <label for="personaSelect" class="control-label">Shopper:</label>
+        <select id="personaSelect" class="select-input" title="Switch simulated active shopper profile">
+          <!-- Populated dynamically via JS -->
+        </select>
+      </div>
+
+      <!-- Device Type Selector -->
+      <div class="device-toggle" title="Active device channel">
+        <button type="button" class="device-btn active" data-device="web">🌐 Web</button>
+        <button type="button" class="device-btn" data-device="ios">📱 iOS</button>
+        <button type="button" class="device-btn" data-device="android">🤖 Android</button>
+      </div>
+
+      <!-- Cart Button -->
+      <button type="button" class="btn-cart" id="openCartBtn">
+        🛒 Cart <span class="badge" id="cartBadgeCount">0</span>
+        <span class="cart-total-pill" id="cartBadgeTotal">$0.00</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Dual-Pane Container -->
+  <main class="main-container">
+
+    <!-- LEFT PANE: Storefront Catalog & User Interactions -->
+    <section class="storefront-pane">
+      <div class="pane-header">
+        <div class="search-bar-wrap">
+          <input type="text" id="searchInput" class="search-input" placeholder="Search 32+ items (e.g. headphones, jacket, kafka)..." autocomplete="off">
+          <button type="button" id="clearSearchBtn" class="clear-btn" title="Clear search">&times;</button>
+        </div>
+
+        <div class="category-tabs" id="categoryTabs">
+          <button type="button" class="tab-btn active" data-category="all">All Products</button>
+          <button type="button" class="tab-btn" data-category="Electronics">Electronics</button>
+          <button type="button" class="tab-btn" data-category="Apparel">Apparel</button>
+          <button type="button" class="tab-btn" data-category="Home & Kitchen">Home &amp; Kitchen</button>
+          <button type="button" class="tab-btn" data-category="Books & Media">Books &amp; Media</button>
+        </div>
+      </div>
+
+      <div class="catalog-status-bar">
+        <span id="productCountLabel">Showing 32 products</span>
+        <span class="catalog-hint">Actions emit real-time events to Kafka with strict JSON schema</span>
+      </div>
+
+      <!-- Product Cards Grid -->
+      <div class="product-grid" id="productGrid">
+        <!-- Injected via JavaScript -->
+      </div>
+    </section>
+
+    <!-- RIGHT PANE: Observability Center & Simulator Controller -->
+    <aside class="observability-pane">
+
+      <!-- Traffic Simulator Control Panel -->
+      <div class="card simulator-card">
+        <div class="card-header">
+          <div class="card-title">
+            <span class="pulse-indicator" id="simPulseIndicator"></span>
+            <h3>Automated Traffic Simulator</h3>
+          </div>
+          <div class="simulator-actions">
+            <button type="button" class="btn btn-primary" id="simToggleBtn">▶ Start Traffic</button>
+          </div>
+        </div>
+
+        <div class="simulator-body">
+          <div class="simulator-sliders">
+            <div class="slider-group">
+              <label for="simBotsRange">
+                Concurrent Bots: <strong id="simBotsVal">5</strong>
+              </label>
+              <input type="range" id="simBotsRange" min="1" max="10" value="5" step="1">
+            </div>
+
+            <div class="slider-group">
+              <label for="simSpeedRange">
+                Tick Speed: <strong id="simSpeedVal">1.5s</strong>
+              </label>
+              <input type="range" id="simSpeedRange" min="0.3" max="4.0" value="1.5" step="0.1">
+            </div>
+          </div>
+
+          <!-- Active Simulated Bots Status -->
+          <div class="bots-status-section">
+            <div class="bots-header">
+              <span>Active Virtual Journeys (Markov Funnel)</span>
+              <span id="simTotalTicks">Ticks: 0</span>
+            </div>
+            <div class="bots-grid" id="botsStatusGrid">
+              <!-- Bot chips populated dynamically -->
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Live Kafka Event Stream Inspector -->
+      <div class="card inspector-card">
+        <div class="card-header">
+          <div class="card-title">
+            <span class="stream-dot pulsing"></span>
+            <h3>Kafka Event Stream Inspector</h3>
+            <span class="badge badge-counter" id="totalEventsBadge">0 Emitted</span>
+          </div>
+          <div class="stream-actions">
+            <button type="button" class="btn-sm btn-ghost" id="pauseStreamBtn">⏸ Pause Feed</button>
+            <button type="button" class="btn-sm btn-ghost" id="clearBufferBtn">🧹 Clear View</button>
+            <button type="button" class="btn-sm btn-danger" id="resetStateBtn" title="Reset state store and event ring buffer">🔄 Reset Store</button>
+          </div>
+        </div>
+
+        <!-- Event Stream Filter Toolbar -->
+        <div class="filter-toolbar">
+          <div class="filter-group">
+            <label for="filterTopic">Topic:</label>
+            <select id="filterTopic" class="select-sm">
+              <option value="all">All Topics</option>
+              <option value="ecom.users">ecom.users</option>
+              <option value="ecom.browse">ecom.browse</option>
+              <option value="ecom.cart">ecom.cart</option>
+              <option value="ecom.orders">ecom.orders</option>
+            </select>
+          </div>
+
+          <div class="filter-group">
+            <label for="filterSource">Source:</label>
+            <select id="filterSource" class="select-sm">
+              <option value="all">All Sources</option>
+              <option value="manual_ui">manual_ui</option>
+              <option value="auto_simulator">auto_simulator</option>
+            </select>
+          </div>
+
+          <div class="buffer-indicator" title="Rolling ring buffer size">
+            Buffer: <span id="bufferUsageText">0/100</span>
+          </div>
+        </div>
+
+        <!-- Topic Breakdown Badges (4 Topics Max) -->
+        <div class="topic-metrics" id="topicMetricsBar">
+          <span class="topic-pill users" title="ecom.users">users: 0</span>
+          <span class="topic-pill browse" title="ecom.browse">browse: 0</span>
+          <span class="topic-pill cart" title="ecom.cart">cart: 0</span>
+          <span class="topic-pill orders" title="ecom.orders">orders: 0</span>
+        </div>
+
+        <!-- Live Scrollable Event Feed -->
+        <div class="event-feed-container" id="eventFeedContainer">
+          <div class="feed-empty-state" id="feedEmptyState">
+            <div class="empty-icon">📡</div>
+            <p><strong>Awaiting Events...</strong></p>
+            <p>Interact with the catalog, add products to cart, or start the automated simulator above.</p>
+          </div>
+        </div>
+      </div>
+
+    </aside>
+  </main>
+
+  <!-- Product Detail Modal -->
+  <div class="modal-backdrop" id="productModal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="modalProdTitle">Product Details</h3>
+        <button type="button" class="modal-close-btn" id="closeProdModalBtn">&times;</button>
+      </div>
+      <div class="modal-body" id="modalProdBody">
+        <!-- Rendered dynamically -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Shopping Cart Drawer / Modal -->
+  <div class="modal-backdrop" id="cartModal">
+    <div class="modal-card modal-cart">
+      <div class="modal-header">
+        <h3>🛒 Shopping Cart</h3>
+        <button type="button" class="modal-close-btn" id="closeCartModalBtn">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div id="cartItemsList" class="cart-items-container">
+          <!-- Rendered dynamically -->
+        </div>
+
+        <div class="cart-summary" id="cartSummarySection">
+          <div class="summary-line">
+            <span>Subtotal:</span>
+            <strong id="cartSummarySubtotal">$0.00</strong>
+          </div>
+          <div class="summary-line">
+            <span>Estimated Tax (8%):</span>
+            <span id="cartSummaryTax">$0.00</span>
+          </div>
+          <div class="summary-line">
+            <span>Shipping:</span>
+            <span id="cartSummaryShipping">FREE (Over $100)</span>
+          </div>
+          <hr class="summary-divider">
+          <div class="summary-line total">
+            <span>Total:</span>
+            <strong id="cartSummaryTotal">$0.00</strong>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" id="clearCartBtn">Clear Cart</button>
+        <button type="button" class="btn btn-primary" id="proceedCheckoutBtn">Proceed to Checkout &rarr;</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Multi-Step Checkout Modal -->
+  <div class="modal-backdrop" id="checkoutModal">
+    <div class="modal-card modal-checkout">
+      <div class="modal-header">
+        <h3>💳 Complete Order</h3>
+        <button type="button" class="modal-close-btn" id="closeCheckoutModalBtn">&times;</button>
+      </div>
+      <div class="modal-body" id="checkoutModalBody">
+        <form id="checkoutForm">
+          <div class="form-section">
+            <h4>1. Shipping Details</h4>
+            <div class="form-row">
+              <input type="text" id="shipAddress" class="text-input" placeholder="Street Address" value="500 Howard St" required>
+            </div>
+            <div class="form-grid">
+              <input type="text" id="shipCity" class="text-input" placeholder="City" value="San Francisco" required>
+              <input type="text" id="shipState" class="text-input" placeholder="State" value="CA" required>
+              <input type="text" id="shipZip" class="text-input" placeholder="ZIP" value="94105" required>
+            </div>
+          </div>
+
+          <div class="form-section">
+            <h4>2. Payment Method</h4>
+            <div class="payment-options">
+              <label class="radio-label">
+                <input type="radio" name="payMethod" value="credit_card" checked>
+                <span>💳 Credit Card (Ending in 4242)</span>
+              </label>
+              <label class="radio-label">
+                <input type="radio" name="payMethod" value="apple_pay">
+                <span>🍏 Apple Pay</span>
+              </label>
+              <label class="radio-label">
+                <input type="radio" name="payMethod" value="google_pay">
+                <span>🌐 Google Pay</span>
+              </label>
+            </div>
+          </div>
+
+          <div class="checkout-review" id="checkoutReviewSection">
+            <!-- Summary rendered dynamically -->
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn btn-ghost" id="cancelCheckoutBtn">Back to Cart</button>
+            <button type="submit" class="btn btn-success" id="submitOrderBtn">Confirm &amp; Place Order ⚡</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Order Confirmation Modal -->
+  <div class="modal-backdrop" id="orderConfirmModal">
+    <div class="modal-card modal-confirm">
+      <div class="modal-body text-center" id="orderConfirmContent">
+        <!-- Rendered upon order creation -->
+      </div>
+      <div class="modal-footer justify-center">
+        <button type="button" class="btn btn-primary" id="closeConfirmModalBtn">Continue Shopping</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Vanilla JavaScript Application -->
+  <script src="/static/app.js"></script>
+</body>
+</html>
