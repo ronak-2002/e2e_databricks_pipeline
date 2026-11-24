@@ -572,17 +572,33 @@ def generate_transactions_with_cdc_and_anomalies(num_base_orders: int = 500):
 def main():
     print("Generating customer master profiles (SCD Type 1 & 2)...")
     customers = generate_customer_profiles_scd()
+    
+    # 1. Write standard valid JSON array (.json) for IDEs / standard JSON parsers
     with open(CUSTOMERS_FILE, "w", encoding="utf-8") as f:
+        json.dump(customers, f, indent=2)
+    print(f" Saved {len(customers)} customer profiles (Standard JSON Array) -> {CUSTOMERS_FILE}")
+
+    # 2. Write JSON Lines (.jsonl) for distributed Spark line-by-line reading
+    customers_jsonl_file = os.path.splitext(CUSTOMERS_FILE)[0] + ".jsonl"
+    with open(customers_jsonl_file, "w", encoding="utf-8") as f:
         for c in customers:
             f.write(json.dumps(c) + "\n")
-    print(f" Saved {len(customers)} customer profile records -> {CUSTOMERS_FILE}")
+    print(f" Saved {len(customers)} customer profiles (JSON Lines) -> {customers_jsonl_file}")
 
-    print("Generating bulk transaction pre-load with CDC mutations & anomalies...")
+    print("\nGenerating bulk transaction pre-load with CDC mutations & anomalies...")
     transactions = generate_transactions_with_cdc_and_anomalies(num_base_orders=650)
+    
+    # 1. Write standard valid JSON array (.json) for IDEs / standard JSON parsers
     with open(TRANSACTIONS_FILE, "w", encoding="utf-8") as f:
+        json.dump(transactions, f, indent=2)
+    print(f" Saved {len(transactions)} transactions (Standard JSON Array) -> {TRANSACTIONS_FILE}")
+
+    # 2. Write JSON Lines (.jsonl) for distributed Spark line-by-line reading
+    transactions_jsonl_file = os.path.splitext(TRANSACTIONS_FILE)[0] + ".jsonl"
+    with open(transactions_jsonl_file, "w", encoding="utf-8") as f:
         for t in transactions:
             f.write(json.dumps(t) + "\n")
-    print(f" Saved {len(transactions)} transaction pre-load records -> {TRANSACTIONS_FILE}")
+    print(f" Saved {len(transactions)} transactions (JSON Lines) -> {transactions_jsonl_file}")
 
     # Also output summary stats
     anomalies = [t for t in transactions if any(f.startswith("ANOMALY") for f in t["data_quality_flags"])]

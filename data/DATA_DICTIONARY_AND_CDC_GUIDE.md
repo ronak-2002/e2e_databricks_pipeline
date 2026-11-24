@@ -9,8 +9,10 @@ This directory contains the historical pre-load dataset designed to bootstrap a 
 
 | File | Format | Record Count | Purpose |
 | :--- | :---: | :---: | :--- |
-| [`bulk_transactions_preload.json`](file:///c:/Users/hp/e2e%20Databricks/data/bulk_transactions_preload.json) | NDJSON | **824** | Historical transactions with multi-state CDC mutations and real-world anomalies. |
-| [`customer_profiles_scd.json`](file:///c:/Users/hp/e2e%20Databricks/data/customer_profiles_scd.json) | NDJSON | **22** | Customer dimension profiles with historical versions modeling SCD Type 1 & Type 2. |
+| [`bulk_transactions_preload.json`](file:///c:/Users/hp/e2e%20Databricks/data/bulk_transactions_preload.json) | Standard JSON Array | **824** | Formatted JSON array for IDEs (VS Code) and tools. |
+| [`bulk_transactions_preload.jsonl`](file:///c:/Users/hp/e2e%20Databricks/data/bulk_transactions_preload.jsonl) | JSON Lines (NDJSON) | **824** | Line-delimited JSON for distributed big data processing (Spark, Kafka). |
+| [`customer_profiles_scd.json`](file:///c:/Users/hp/e2e%20Databricks/data/customer_profiles_scd.json) | Standard JSON Array | **22** | Customer dimension profiles modeling SCD Type 1 & Type 2. |
+| [`customer_profiles_scd.jsonl`](file:///c:/Users/hp/e2e%20Databricks/data/customer_profiles_scd.jsonl) | JSON Lines (NDJSON) | **22** | Customer dimension profiles in line-delimited JSON format. |
 | [`generate_preload.py`](file:///c:/Users/hp/e2e%20Databricks/data/generate_preload.py) | Python | Script | Generator script for scaling up or re-generating the dataset deterministically. |
 
 ---
@@ -95,10 +97,13 @@ The dataset intentionally incorporates **24 real-world data quality anomalies** 
 
 ### Recipe 1: Initializing Delta Lake Bronze Table
 ```python
-# 1. Read the bulk pre-load NDJSON file into Spark DataFrame
-raw_df = spark.read.json("file:/c:/Users/hp/e2e Databricks/data/bulk_transactions_preload.json")
+# Option A: Read standard JSON array (.json) with multiline option
+raw_df = spark.read.option("multiline", "true").json("file:/c:/Users/hp/e2e Databricks/data/bulk_transactions_preload.json")
 
-# 2. Write baseline directly to Bronze Delta Lake table
+# Option B: Read line-delimited JSON (.jsonl)
+# raw_df = spark.read.json("file:/c:/Users/hp/e2e Databricks/data/bulk_transactions_preload.jsonl")
+
+# Write baseline directly to Bronze Delta Lake table
 (raw_df.write
     .format("delta")
     .mode("overwrite")
